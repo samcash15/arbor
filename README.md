@@ -1,10 +1,15 @@
-# Arbor
+# <img src="src/main/resources/images/tree.png" height="32" align="top"> Arbor
 
 **A place where your ideas take root.**
 
 Arbor is a lightweight, modern desktop note-taking and code editing application built with Java and JavaFX. It's designed for developers and writers who want a clean, distraction-free workspace to organize notes, documentation, and code snippets in a local folder-based system — no cloud accounts, no subscriptions, just your files on your machine.
 
-## Why Arbor?
+<p align="center">
+  <img src="src/main/resources/images/Arbor welcome page.png" alt="Arbor Light Mode" width="49%">
+  <img src="src/main/resources/images/Arbor Dark Mode.png" alt="Arbor Dark Mode" width="49%">
+</p>
+
+## <img src="src/main/resources/images/leaf.png" height="20" align="top"> Why Arbor?
 
 Most note-taking apps either lock you into proprietary formats, require cloud accounts, or lack proper code editing support. Arbor takes a different approach:
 
@@ -13,7 +18,7 @@ Most note-taking apps either lock you into proprietary formats, require cloud ac
 - **Markdown-first** — Full markdown rendering with live preview, split-view editing, and a distraction-free writing experience.
 - **Fast and local** — A native desktop app with no network dependency. Opens instantly, saves automatically.
 
-## Features
+## <img src="src/main/resources/images/leaf.png" height="20" align="top"> Features
 
 ### Editor
 - Multi-tab editing with dirty state tracking
@@ -46,7 +51,7 @@ Most note-taking apps either lock you into proprietary formats, require cloud ac
 | Ctrl+F | Find in file |
 | Ctrl+H | Find and replace |
 
-## Tech Stack
+## <img src="src/main/resources/images/leaf.png" height="20" align="top"> Tech Stack
 
 | Technology | Purpose |
 |---|---|
@@ -58,7 +63,7 @@ Most note-taking apps either lock you into proprietary formats, require cloud ac
 | **SLF4J + Logback** | Logging |
 | **Maven** | Build and dependency management |
 
-## Getting Started
+## <img src="src/main/resources/images/leaf.png" height="20" align="top"> Getting Started
 
 ### Prerequisites
 - Java 21+
@@ -72,7 +77,7 @@ mvn clean javafx:run
 
 On first launch, Arbor will prompt you to select a directory as your grove. This is where your notes and files will live.
 
-## Project Structure
+## <img src="src/main/resources/images/leaf.png" height="20" align="top"> Project Structure
 
 ```
 src/main/java/com/arbor/
