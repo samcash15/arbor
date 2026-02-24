@@ -1,5 +1,6 @@
 package com.arbor.view;
 
+import com.arbor.service.BracketMatchService;
 import com.arbor.service.FileOperationService;
 import com.arbor.service.SyntaxHighlightService;
 import javafx.application.Platform;
@@ -21,6 +22,8 @@ import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.StyleClassedTextArea;
+import org.fxmisc.richtext.model.StyleSpans;
+import org.fxmisc.richtext.model.StyleSpansBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +33,8 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
 
 public class EditorTab extends Tab {
     private static final Logger log = LoggerFactory.getLogger(EditorTab.class);
@@ -52,6 +57,9 @@ public class EditorTab extends Tab {
     private WebView webView;
 
     private static final SyntaxHighlightService syntaxService = new SyntaxHighlightService();
+    private static final BracketMatchService bracketService = new BracketMatchService();
+    private int prevBracketA = -1;
+    private int prevBracketB = -1;
 
     private FindReplaceBar findReplaceBar;
     private ViewMode currentMode = ViewMode.EDIT;
@@ -61,6 +69,9 @@ public class EditorTab extends Tab {
     private Timer previewTimer;
     private final String language;
     private boolean darkMode = false;
+    private Consumer<String> onBacklinkNavigate;
+    private Runnable onSaveCallback;
+    private Runnable onSplitRight;
 
     public EditorTab(Path filePath, FileOperationService fileOps) {
         this.filePath = filePath;
@@ -116,6 +127,44 @@ public class EditorTab extends Tab {
                 event.consume();
             }
         });
+        // Ctrl+Click for backlink navigation
+        textArea.setOnMouseClicked(mouseEvent -> {
+            if (mouseEvent.isControlDown() && mouseEvent.getClickCount() == 1 && onBacklinkNavigate != null) {
+                int pos = textArea.hit(mouseEvent.getX(), mouseEvent.getY()).getInsertionIndex();
+                String link = extractBacklinkAt(textArea.getText(), pos);
+                if (link != null) {
+                    onBacklinkNavigate.accept(link);
+                    mouseEvent.consume();
+                }
+            }
+        });
+
+        // Bracket matching on caret movement
+        textArea.caretPositionProperty().addListener((obs, oldPos, newPos) ->
+                updateBracketHighlights(newPos.intValue()));
+
+        // Tab context menu
+        javafx.scene.control.ContextMenu contextMenu = new javafx.scene.control.ContextMenu();
+        javafx.scene.control.MenuItem splitRightItem = new javafx.scene.control.MenuItem("Split Right");
+        splitRightItem.setOnAction(e -> { if (onSplitRight != null) onSplitRight.run(); });
+        javafx.scene.control.MenuItem closeItem = new javafx.scene.control.MenuItem("Close");
+        closeItem.setOnAction(e -> {
+            if (isDirty()) {
+                boolean save = com.arbor.util.DialogHelper.showConfirmation("Unsaved Changes",
+                        "Save changes before closing?");
+                if (save) save();
+            }
+            if (getTabPane() != null) getTabPane().getTabs().remove(this);
+        });
+        javafx.scene.control.MenuItem closeOthersItem = new javafx.scene.control.MenuItem("Close Others");
+        closeOthersItem.setOnAction(e -> {
+            if (getTabPane() != null) {
+                getTabPane().getTabs().removeIf(t -> t != this && t.isClosable());
+            }
+        });
+        contextMenu.getItems().addAll(splitRightItem, closeItem, closeOthersItem);
+        setContextMenu(contextMenu);
+
         setContent(rootPane);
         updateTabTitle();
 
@@ -128,13 +177,11 @@ public class EditorTab extends Tab {
             savedContent = "";
         }
 
-        // Apply syntax highlighting
-        if (language != null) {
-            applySyntaxHighlighting();
-            textArea.multiPlainChanges()
-                    .successionEnds(Duration.ofMillis(150))
-                    .subscribe(changes -> applySyntaxHighlighting());
-        }
+        // Apply syntax highlighting (also overlays backlink styles)
+        applySyntaxHighlighting();
+        textArea.multiPlainChanges()
+                .successionEnds(Duration.ofMillis(150))
+                .subscribe(changes -> applySyntaxHighlighting());
 
         // Track dirty state, schedule autosave, and update preview
         textArea.textProperty().addListener((obs, oldText, newText) -> {
@@ -198,10 +245,63 @@ public class EditorTab extends Tab {
 
     private void applySyntaxHighlighting() {
         try {
-            textArea.setStyleSpans(0, syntaxService.computeHighlighting(textArea.getText(), language));
+            String text = textArea.getText();
+            var spans = syntaxService.computeHighlighting(text, language);
+            spans = SyntaxHighlightService.overlayBacklinks(spans, text);
+            textArea.setStyleSpans(0, spans);
         } catch (Exception e) {
             log.debug("Syntax highlighting failed", e);
         }
+    }
+
+    private void updateBracketHighlights(int caretPos) {
+        try {
+            // Clear previous bracket highlights by re-applying syntax spans at those positions
+            if (prevBracketA >= 0 && prevBracketA < textArea.getLength()) {
+                clearBracketStyle(prevBracketA);
+            }
+            if (prevBracketB >= 0 && prevBracketB < textArea.getLength()) {
+                clearBracketStyle(prevBracketB);
+            }
+            prevBracketA = -1;
+            prevBracketB = -1;
+
+            BracketMatchService.BracketPair pair = bracketService.findMatchingBracket(textArea.getText(), caretPos);
+            if (pair != null) {
+                applyBracketStyle(pair.openPos());
+                applyBracketStyle(pair.closePos());
+                prevBracketA = pair.openPos();
+                prevBracketB = pair.closePos();
+            }
+        } catch (Exception e) {
+            log.debug("Bracket highlight failed", e);
+        }
+    }
+
+    private void applyBracketStyle(int pos) {
+        if (pos < 0 || pos >= textArea.getLength()) return;
+        StyleSpans<Collection<String>> existing = textArea.getStyleSpans(pos, pos + 1);
+        StyleSpansBuilder<Collection<String>> builder = new StyleSpansBuilder<>();
+        existing.forEach(span -> {
+            java.util.List<String> newStyles = new java.util.ArrayList<>(span.getStyle());
+            if (!newStyles.contains("bracket-match")) {
+                newStyles.add("bracket-match");
+            }
+            builder.add(newStyles, span.getLength());
+        });
+        textArea.setStyleSpans(pos, builder.create());
+    }
+
+    private void clearBracketStyle(int pos) {
+        if (pos < 0 || pos >= textArea.getLength()) return;
+        StyleSpans<Collection<String>> existing = textArea.getStyleSpans(pos, pos + 1);
+        StyleSpansBuilder<Collection<String>> builder = new StyleSpansBuilder<>();
+        existing.forEach(span -> {
+            java.util.List<String> newStyles = new java.util.ArrayList<>(span.getStyle());
+            newStyles.remove("bracket-match");
+            builder.add(newStyles, span.getLength());
+        });
+        textArea.setStyleSpans(pos, builder.create());
     }
 
     private WebView getOrCreateWebView() {
@@ -301,6 +401,9 @@ public class EditorTab extends Tab {
             dirty = false;
             updateTabTitle();
             log.debug("Saved: {}", filePath);
+            if (onSaveCallback != null) {
+                onSaveCallback.run();
+            }
             return true;
         } catch (IOException e) {
             log.error("Failed to save: {}", filePath, e);
@@ -318,5 +421,53 @@ public class EditorTab extends Tab {
 
     public StyleClassedTextArea getTextArea() {
         return textArea;
+    }
+
+    public void showFind() {
+        findReplaceBar.show(false);
+    }
+
+    public void showFindAndReplace() {
+        findReplaceBar.show(true);
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public boolean isMarkdown() {
+        return isMarkdown;
+    }
+
+    public void setOnBacklinkNavigate(Consumer<String> onBacklinkNavigate) {
+        this.onBacklinkNavigate = onBacklinkNavigate;
+    }
+
+    public void setOnSaveCallback(Runnable onSaveCallback) {
+        this.onSaveCallback = onSaveCallback;
+    }
+
+    public void setOnSplitRight(Runnable onSplitRight) {
+        this.onSplitRight = onSplitRight;
+    }
+
+    public void setBacklinksPanel(BacklinksPanel panel) {
+        rootPane.setBottom(panel);
+    }
+
+    public BorderPane getRootPane() {
+        return rootPane;
+    }
+
+    static String extractBacklinkAt(String text, int pos) {
+        // Search backwards for [[ and forwards for ]]
+        int start = text.lastIndexOf("[[", pos);
+        if (start < 0) return null;
+        int end = text.indexOf("]]", Math.max(start + 2, pos - 1));
+        if (end < 0) return null;
+        // Ensure position is between [[ and ]]
+        if (pos < start || pos > end + 2) return null;
+        String link = text.substring(start + 2, end).trim();
+        return link.isEmpty() ? null : link;
     }
 }

@@ -42,6 +42,11 @@ public class StatusBar extends HBox {
         });
     }
 
+    public void bindToSplitEditorPane(SplitEditorPane splitEditorPane) {
+        // Bind to primary pane
+        bindToTabPane(splitEditorPane.getPrimaryPane());
+    }
+
     private void updateForTab(Tab tab) {
         if (tab instanceof EditorTab editorTab) {
             StyleClassedTextArea textArea = editorTab.getTextArea();

@@ -17,7 +17,7 @@ public class ToolbarView extends HBox {
     private double dragOffsetX;
     private double dragOffsetY;
 
-    public ToolbarView(Runnable onSearch, Runnable onSwitchGrove, Runnable onSettings) {
+    public ToolbarView(Runnable onSearch, Runnable onSwitchGrove, Runnable onSettings, Runnable onOutlineToggle) {
         getStyleClass().add("toolbar");
         setAlignment(Pos.CENTER_LEFT);
         setPadding(new Insets(0, 12, 0, 16));
@@ -69,7 +69,12 @@ public class ToolbarView extends HBox {
         });
         gearIcon.setOnMouseClicked(e -> onSettings.run());
 
-        HBox appActions = new HBox(12, searchIcon, gearIcon);
+        Label outlineIcon = new Label("\u2630");
+        outlineIcon.getStyleClass().add("toolbar-icon");
+        outlineIcon.setStyle("-fx-font-size: 16px;");
+        outlineIcon.setOnMouseClicked(e -> onOutlineToggle.run());
+
+        HBox appActions = new HBox(12, searchIcon, outlineIcon, gearIcon);
         appActions.setAlignment(Pos.CENTER_RIGHT);
 
         // Vertical divider between app actions and window controls

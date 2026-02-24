@@ -11,6 +11,8 @@ public class ArborConfig {
     private double dividerPosition = 0.2;
     private List<Path> recentGroves = new ArrayList<>();
     private String theme = "light";
+    private List<String> openTabs = new ArrayList<>();
+    private int selectedTabIndex = 0;
 
     public ArborConfig() {
     }
@@ -57,6 +59,22 @@ public class ArborConfig {
 
     public void setTheme(String theme) {
         this.theme = theme;
+    }
+
+    public List<String> getOpenTabs() {
+        return openTabs;
+    }
+
+    public void setOpenTabs(List<String> openTabs) {
+        this.openTabs = openTabs;
+    }
+
+    public int getSelectedTabIndex() {
+        return selectedTabIndex;
+    }
+
+    public void setSelectedTabIndex(int selectedTabIndex) {
+        this.selectedTabIndex = selectedTabIndex;
     }
 
     public void addRecentGrove(Path grovePath) {

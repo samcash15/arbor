@@ -40,14 +40,23 @@ Most note-taking apps either lock you into proprietary formats, require cloud ac
 - Window state persistence (size, position, splitter location)
 - Light and Dark themes
 
+### Command Palette
+- **Ctrl+Shift+P** opens a VS Code-style command palette with access to every action in the app
+- Fuzzy search across all commands — type any part of a command name or category to filter
+- Commands are organized by category (File, Editor, View, Grove) with keyboard shortcut hints
+- Execute any command with Enter or click — no need to remember shortcuts
+- Works in both light and dark themes
+
 ### Keyboard Shortcuts
 | Shortcut | Action |
 |---|---|
+| Ctrl+Shift+P | Command Palette |
 | Ctrl+S | Save |
 | Ctrl+W | Close tab |
 | Ctrl+N | New file |
 | Ctrl+Shift+N | New folder |
 | Ctrl+Shift+F | Search files |
+| Ctrl+Shift+O | Toggle outline panel |
 | Ctrl+F | Find in file |
 | Ctrl+H | Find and replace |
 
@@ -87,3 +96,12 @@ src/main/java/com/arbor/
 ├── util/                     # Helpers (dialogs, icons)
 └── view/                     # UI components (editor, toolbar, file tree, etc.)
 ```
+
+## <img src="src/main/resources/images/leaf.png" height="20" align="top"> Version History
+
+### v0.2.0
+- **Command Palette (Ctrl+Shift+P)** — A searchable command launcher with fuzzy matching, category chips, and shortcut hints. Every action in the app is now discoverable from a single entry point.
+- **Dark mode fix** — Fixed file tree root folder name being unreadable in dark theme.
+
+### v0.1.0
+- Initial release with multi-tab editor, syntax highlighting, markdown preview, file tree, find/replace, dual-mode search, groves, outline panel, backlinks, and light/dark themes.

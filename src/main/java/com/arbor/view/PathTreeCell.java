@@ -45,6 +45,7 @@ public class PathTreeCell extends TreeCell<Path> {
             setText(null);
             Label nameLabel = new Label(fileName);
             nameLabel.setStyle("-fx-padding: 0;");
+            nameLabel.textFillProperty().bind(textFillProperty());
 
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -117,8 +118,11 @@ public class PathTreeCell extends TreeCell<Path> {
                 name.ifPresent(n -> {
                     try {
                         fileOps.createFile(path, n);
-                        treeService.populateChildren(getTreeItem());
-                        getTreeItem().setExpanded(true);
+                        TreeItem<Path> item = getTreeItem();
+                        if (item != null) {
+                            treeService.populateChildren(item);
+                            item.setExpanded(true);
+                        }
                     } catch (IOException ex) {
                         DialogHelper.showError("Error", "Could not create file: " + ex.getMessage());
                     }
@@ -131,8 +135,11 @@ public class PathTreeCell extends TreeCell<Path> {
                 name.ifPresent(n -> {
                     try {
                         fileOps.createDirectory(path, n);
-                        treeService.populateChildren(getTreeItem());
-                        getTreeItem().setExpanded(true);
+                        TreeItem<Path> item = getTreeItem();
+                        if (item != null) {
+                            treeService.populateChildren(item);
+                            item.setExpanded(true);
+                        }
                     } catch (IOException ex) {
                         DialogHelper.showError("Error", "Could not create folder: " + ex.getMessage());
                     }
@@ -148,9 +155,9 @@ public class PathTreeCell extends TreeCell<Path> {
             name.ifPresent(n -> {
                 try {
                     fileOps.rename(path, n);
-                    TreeItem<Path> parent = getTreeItem().getParent();
-                    if (parent != null) {
-                        treeService.populateChildren(parent);
+                    TreeItem<Path> item = getTreeItem();
+                    if (item != null && item.getParent() != null) {
+                        treeService.populateChildren(item.getParent());
                     }
                 } catch (IOException ex) {
                     DialogHelper.showError("Error", "Could not rename: " + ex.getMessage());
@@ -165,9 +172,9 @@ public class PathTreeCell extends TreeCell<Path> {
             if (confirmed) {
                 try {
                     fileOps.delete(path);
-                    TreeItem<Path> parent = getTreeItem().getParent();
-                    if (parent != null) {
-                        treeService.populateChildren(parent);
+                    TreeItem<Path> item = getTreeItem();
+                    if (item != null && item.getParent() != null) {
+                        treeService.populateChildren(item.getParent());
                     }
                 } catch (IOException ex) {
                     DialogHelper.showError("Error", "Could not delete: " + ex.getMessage());

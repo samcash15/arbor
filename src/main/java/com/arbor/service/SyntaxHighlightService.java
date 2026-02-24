@@ -8,6 +8,8 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.arbor.service.BacklinkService.BACKLINK_PATTERN;
+
 public class SyntaxHighlightService {
 
     private static final Map<String, Pattern> LANGUAGE_PATTERNS = new HashMap<>();
@@ -130,6 +132,38 @@ public class SyntaxHighlightService {
 
         builder.add(Collections.emptySet(), text.length() - lastEnd);
         return builder.create();
+    }
+
+    public static StyleSpans<Collection<String>> overlayBacklinks(StyleSpans<Collection<String>> base, String text) {
+        Matcher matcher = BACKLINK_PATTERN.matcher(text);
+
+        // Build a full-length overlay span marking backlink regions
+        StyleSpansBuilder<Collection<String>> overlayBuilder = new StyleSpansBuilder<>();
+        int lastEnd = 0;
+
+        while (matcher.find()) {
+            if (matcher.start() > lastEnd) {
+                overlayBuilder.add(Collections.emptySet(), matcher.start() - lastEnd);
+            }
+            overlayBuilder.add(Collections.singleton("backlink"), matcher.end() - matcher.start());
+            lastEnd = matcher.end();
+        }
+
+        if (lastEnd == 0) {
+            return base; // no backlinks found
+        }
+
+        if (lastEnd < text.length()) {
+            overlayBuilder.add(Collections.emptySet(), text.length() - lastEnd);
+        }
+
+        StyleSpans<Collection<String>> overlay = overlayBuilder.create();
+        return base.overlay(overlay, (existing, added) -> {
+            if (added.isEmpty()) return existing;
+            Set<String> merged = new TreeSet<>(existing);
+            merged.addAll(added);
+            return merged;
+        });
     }
 
     private String getStyleClass(Matcher matcher) {
