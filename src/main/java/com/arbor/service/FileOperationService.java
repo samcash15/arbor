@@ -20,6 +20,13 @@ public class FileOperationService {
         log.debug("Wrote file: {}", path);
     }
 
+    public Path createFileWithContent(Path parent, String fileName, String content) throws IOException {
+        Path newFile = parent.resolve(fileName);
+        Files.writeString(newFile, content);
+        log.debug("Created file with content: {}", newFile);
+        return newFile;
+    }
+
     public Path createFile(Path parent, String fileName) throws IOException {
         Path newFile = parent.resolve(fileName);
         Files.createFile(newFile);

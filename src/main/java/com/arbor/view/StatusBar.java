@@ -14,6 +14,8 @@ public class StatusBar extends HBox {
     private final Label cursorPositionLabel;
     private final Label fileTypeLabel;
     private final Label wordCountLabel;
+    private final Label focusIndicator;
+    private final Label typewriterIndicator;
 
     public StatusBar() {
         getStyleClass().add("status-bar");
@@ -24,6 +26,16 @@ public class StatusBar extends HBox {
         cursorPositionLabel = new Label("Ln 1, Col 1");
         cursorPositionLabel.getStyleClass().add("status-label");
 
+        focusIndicator = new Label("Focus");
+        focusIndicator.getStyleClass().addAll("status-label", "status-indicator");
+        focusIndicator.setVisible(false);
+        focusIndicator.setManaged(false);
+
+        typewriterIndicator = new Label("Typewriter");
+        typewriterIndicator.getStyleClass().addAll("status-label", "status-indicator");
+        typewriterIndicator.setVisible(false);
+        typewriterIndicator.setManaged(false);
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -33,7 +45,7 @@ public class StatusBar extends HBox {
         fileTypeLabel = new Label("");
         fileTypeLabel.getStyleClass().add("status-label");
 
-        getChildren().addAll(cursorPositionLabel, spacer, wordCountLabel, fileTypeLabel);
+        getChildren().addAll(cursorPositionLabel, focusIndicator, typewriterIndicator, spacer, wordCountLabel, fileTypeLabel);
     }
 
     public void bindToTabPane(TabPane tabPane) {
@@ -78,6 +90,16 @@ public class StatusBar extends HBox {
         int paragraph = textArea.getCurrentParagraph() + 1;
         int column = textArea.getCaretColumn() + 1;
         cursorPositionLabel.setText("Ln " + paragraph + ", Col " + column);
+    }
+
+    public void setFocusIndicator(boolean visible) {
+        focusIndicator.setVisible(visible);
+        focusIndicator.setManaged(visible);
+    }
+
+    public void setTypewriterIndicator(boolean visible) {
+        typewriterIndicator.setVisible(visible);
+        typewriterIndicator.setManaged(visible);
     }
 
     private void updateWordCount(StyleClassedTextArea textArea, String fileName) {

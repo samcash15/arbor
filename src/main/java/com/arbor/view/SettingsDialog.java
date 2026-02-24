@@ -1,20 +1,22 @@
 package com.arbor.view;
 
+import com.arbor.App;
 import com.arbor.model.ArborConfig;
 import com.arbor.service.ConfigService;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 
 public class SettingsDialog extends Stage {
 
@@ -78,35 +80,29 @@ public class SettingsDialog extends Stage {
 
         Separator sepAppearance = new Separator();
 
-        // Window section
-        Label windowLabel = new Label("Window");
-        windowLabel.getStyleClass().add("settings-section-label");
+        // Daily Notes section
+        Label dailyNotesLabel = new Label("Daily Notes");
+        dailyNotesLabel.getStyleClass().add("settings-section-label");
 
-        Button minimizeBtn = new Button("Minimize");
-        minimizeBtn.getStyleClass().add("settings-action-button");
-        minimizeBtn.setOnAction(e -> {
-            close();
-            owner.setIconified(true);
+        Label dailyNotesFolderLabel = new Label("Folder name:");
+        dailyNotesFolderLabel.getStyleClass().add("settings-value");
+
+        TextField dailyNotesFolderField = new TextField(config.getDailyNotesFolder());
+        dailyNotesFolderField.setPrefWidth(200);
+        dailyNotesFolderField.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+            if (!isFocused) {
+                String value = dailyNotesFolderField.getText().trim();
+                if (!value.isEmpty()) {
+                    config.setDailyNotesFolder(value);
+                    configService.save();
+                }
+            }
         });
 
-        Button maximizeBtn = new Button("Maximize / Restore");
-        maximizeBtn.getStyleClass().add("settings-action-button");
-        maximizeBtn.setOnAction(e -> {
-            close();
-            owner.setMaximized(!owner.isMaximized());
-        });
+        HBox dailyNotesRow = new HBox(8, dailyNotesFolderLabel, dailyNotesFolderField);
+        dailyNotesRow.setAlignment(Pos.CENTER_LEFT);
 
-        Button closeAppBtn = new Button("Close Arbor");
-        closeAppBtn.getStyleClass().addAll("settings-action-button", "settings-close-button");
-        closeAppBtn.setOnAction(e -> {
-            close();
-            owner.fireEvent(new WindowEvent(owner, WindowEvent.WINDOW_CLOSE_REQUEST));
-        });
-
-        HBox windowButtons = new HBox(8, minimizeBtn, maximizeBtn, closeAppBtn);
-        windowButtons.setAlignment(Pos.CENTER_LEFT);
-
-        Separator sep1 = new Separator();
+        Separator sepDailyNotes = new Separator();
 
         // Grove section
         Label groveLabel = new Label("Current Grove");
@@ -130,7 +126,7 @@ public class SettingsDialog extends Stage {
         Label aboutLabel = new Label("About");
         aboutLabel.getStyleClass().add("settings-section-label");
 
-        Label version = new Label("Arbor v0.1.0");
+        Label version = new Label("Arbor v" + App.VERSION);
         version.getStyleClass().add("settings-value");
 
         Label tagline = new Label("A place where your ideas take root.");
@@ -138,11 +134,11 @@ public class SettingsDialog extends Stage {
 
         root.getChildren().addAll(heading,
                 appearanceLabel, themeButtons, sepAppearance,
-                windowLabel, windowButtons, sep1,
+                dailyNotesLabel, dailyNotesRow, sepDailyNotes,
                 groveLabel, grovePathLabel, switchGroveBtn, sep2,
                 aboutLabel, version, tagline);
 
-        Scene scene = new Scene(root, 440, 480);
+        Scene scene = new Scene(root, 440, 500);
         var cssUrl = getClass().getResource("/css/arbor.css");
         if (cssUrl != null) {
             scene.getStylesheets().add(cssUrl.toExternalForm());

@@ -36,6 +36,8 @@ import java.util.List;
  * Main application entry point.
  */
 public class App extends Application {
+    public static final String VERSION = "0.3.0";
+
     private static final Logger log = LoggerFactory.getLogger(App.class);
 
     private ConfigService configService;
@@ -45,9 +47,14 @@ public class App extends Application {
     private SearchService searchService;
     private OutlineService outlineService;
     private BacklinkService backlinkService;
+    private TemplateService templateService;
+    private DailyNoteService dailyNoteService;
+    private ExportService exportService;
+    private TagService tagService;
     private TabController tabController;
     private SearchBar searchBar;
     private OutlinePanel outlinePanel;
+    private StatusBar statusBar;
     private Grove grove;
     private Scene mainScene;
     private SplitEditorPane splitEditorPane;
@@ -66,6 +73,11 @@ public class App extends Application {
         searchService = new SearchService();
         outlineService = new OutlineService();
         backlinkService = new BacklinkService();
+        templateService = new TemplateService();
+        templateService.ensureTemplatesDir();
+        templateService.initDefaults();
+        exportService = new ExportService();
+        tagService = new TagService();
 
         ArborConfig config = configService.getConfig();
 
@@ -93,6 +105,13 @@ public class App extends Application {
         backlinkService.setGrovePath(grovePath);
         Thread.startVirtualThread(backlinkService::fullScan);
 
+        // Initialize daily note service
+        dailyNoteService = new DailyNoteService(fileOps);
+
+        // Initialize tag service
+        tagService.setGrovePath(grovePath);
+        Thread.startVirtualThread(tagService::fullScan);
+
         // Build UI
         BorderPane root = new BorderPane();
 
@@ -110,14 +129,14 @@ public class App extends Application {
         }
 
         // File tree panel
-        FileTreePanel fileTreePanel = new FileTreePanel(treeService, fileOps, tabController::openFile);
+        FileTreePanel fileTreePanel = new FileTreePanel(treeService, fileOps, tabController::openFile, tagService);
         fileTreePanel.loadGrove(grovePath);
 
         // Outline panel (starts hidden)
         outlinePanel = new OutlinePanel(outlineService);
 
         // Search bar (inline, hidden by default)
-        searchBar = new SearchBar(searchService);
+        searchBar = new SearchBar(searchService, tagService);
         searchBar.setRootPath(grovePath);
         searchBar.setOnFileOpen(tabController::openFile);
 
@@ -137,7 +156,7 @@ public class App extends Application {
         root.setTop(topArea);
 
         // Status bar
-        StatusBar statusBar = new StatusBar();
+        statusBar = new StatusBar();
         statusBar.bindToSplitEditorPane(splitEditorPane);
         root.setBottom(statusBar);
 
@@ -162,7 +181,7 @@ public class App extends Application {
         root.setCenter(mainSplitPane);
 
         // Wire tab selection listener for outline and backlinks
-        wireTabListeners(primaryTabPane, grovePath);
+        wireTabListeners(primaryTabPane, grovePath, fileTreePanel);
 
         // Add subtle border for undecorated window
         root.getStyleClass().add("app-root");
@@ -225,6 +244,10 @@ public class App extends Application {
                 new KeyCodeCombination(KeyCode.P, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
                 commandPalette::toggle
         );
+        scene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN),
+                () -> openDailyNote(grovePath, fileTreePanel, config)
+        );
 
         // Register commands
         registerCommands(grovePath, fileTreePanel, primaryStage, toolbarHolder[0], config);
@@ -272,7 +295,7 @@ public class App extends Application {
         primaryStage.show();
     }
 
-    private void wireTabListeners(DraggableTabPane tabPane, Path grovePath) {
+    private void wireTabListeners(DraggableTabPane tabPane, Path grovePath, FileTreePanel fileTreePanel) {
         tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab instanceof EditorTab editorTab) {
                 // Outline panel
@@ -288,9 +311,11 @@ public class App extends Application {
                     }
                 });
 
-                // Save callback for backlink re-indexing
+                // Save callback for backlink and tag re-indexing
                 editorTab.setOnSaveCallback(() -> {
                     backlinkService.rescanFile(editorTab.getFilePath());
+                    tagService.rescanFile(editorTab.getFilePath());
+                    fileTreePanel.refreshCells();
                     // Update backlinks panel for any visible tab
                     Tab activeTab = splitEditorPane.getActivePane().getSelectionModel().getSelectedItem();
                     if (activeTab instanceof EditorTab activeEditor) {
@@ -300,6 +325,13 @@ public class App extends Application {
 
                 // Split right action
                 editorTab.setOnSplitRight(() -> splitEditorPane.splitRight(editorTab));
+
+                // Apply focus/typewriter mode from config
+                ArborConfig cfg = configService.getConfig();
+                editorTab.setFocusMode(cfg.isFocusModeEnabled());
+                editorTab.setTypewriterMode(cfg.isTypewriterModeEnabled());
+                statusBar.setFocusIndicator(cfg.isFocusModeEnabled());
+                statusBar.setTypewriterIndicator(cfg.isTypewriterModeEnabled());
 
                 // Backlinks panel
                 updateBacklinksForTab(editorTab);
@@ -325,6 +357,12 @@ public class App extends Application {
                         () -> createNewFile(grovePath, fileTreePanel)),
                 new CommandEntry("New Folder", "File", "Ctrl+Shift+N",
                         () -> createNewFolder(grovePath, fileTreePanel)),
+                new CommandEntry("New from Template", "File", null,
+                        () -> createFromTemplate(grovePath, fileTreePanel)),
+                new CommandEntry("Open Templates Folder", "File", null,
+                        this::openTemplatesFolder),
+                new CommandEntry("Daily Note", "File", "Ctrl+D",
+                        () -> openDailyNote(grovePath, fileTreePanel, config)),
                 new CommandEntry("Save", "File", "Ctrl+S",
                         tabController::saveCurrentTab),
                 new CommandEntry("Close Tab", "File", "Ctrl+W",
@@ -345,6 +383,10 @@ public class App extends Application {
                 }),
                 new CommandEntry("Split Right", "Editor", null,
                         tabController::splitRight),
+                new CommandEntry("Toggle Focus Mode", "Editor", null,
+                        () -> toggleFocusMode(config)),
+                new CommandEntry("Toggle Typewriter Mode", "Editor", null,
+                        () -> toggleTypewriterMode(config)),
 
                 // View
                 new CommandEntry("Toggle Search", "View", "Ctrl+Shift+F",
@@ -360,6 +402,14 @@ public class App extends Application {
                 }),
                 new CommandEntry("Command Palette", "View", "Ctrl+Shift+P",
                         commandPalette::toggle),
+                new CommandEntry("Search by Tag", "View", null,
+                        searchBar::selectTagMode),
+
+                // Export
+                new CommandEntry("Export as HTML", "Export", null,
+                        () -> exportHtml(stage, config)),
+                new CommandEntry("Export as PDF", "Export", null,
+                        () -> exportPdf(stage, config)),
 
                 // Grove
                 new CommandEntry("Switch Grove", "Grove", null,
@@ -502,6 +552,10 @@ public class App extends Application {
         backlinkService.setGrovePath(newPath);
         Thread.startVirtualThread(backlinkService::fullScan);
 
+        // Re-init tag service
+        tagService.setGrovePath(newPath);
+        Thread.startVirtualThread(tagService::fullScan);
+
         // Rebind outline
         if (outlineVisible) {
             outlinePanel.clear();
@@ -514,13 +568,131 @@ public class App extends Application {
 
         // Rewire file tree
         fileTreePanel.getTreeView().setCellFactory(tv ->
-                new PathTreeCell(fileOps, treeService, tabController::openFile));
+                new PathTreeCell(fileOps, treeService, tabController::openFile, tagService));
 
         // Rewire tab listeners
-        wireTabListeners(splitEditorPane.getPrimaryPane(), newPath);
+        wireTabListeners(splitEditorPane.getPrimaryPane(), newPath, fileTreePanel);
 
         // Re-register commands with new grove references
         registerCommands(newPath, fileTreePanel, stage, toolbar, config);
+    }
+
+    private void createFromTemplate(Path grovePath, FileTreePanel fileTreePanel) {
+        var templates = templateService.listTemplates();
+        if (templates.isEmpty()) {
+            com.arbor.util.DialogHelper.showInfo("Templates", "No templates found in " + templateService.getTemplatesDir());
+            return;
+        }
+
+        List<String> templateNames = templates.stream()
+                .map(p -> p.getFileName().toString())
+                .toList();
+
+        com.arbor.util.DialogHelper.showChoiceDialog("New from Template", "Choose a template:", templateNames)
+                .ifPresent(chosen -> {
+                    Path templatePath = templateService.getTemplatesDir().resolve(chosen);
+                    try {
+                        String content = templateService.readTemplate(templatePath);
+                        com.arbor.util.DialogHelper.showTextInput("New File", "File name:", "untitled.md")
+                                .ifPresent(fileName -> {
+                                    try {
+                                        Path newFile = fileOps.createFileWithContent(grovePath, fileName, content);
+                                        fileTreePanel.refresh();
+                                        tabController.openFile(newFile);
+                                    } catch (IOException e) {
+                                        com.arbor.util.DialogHelper.showError("Error", "Could not create file: " + e.getMessage());
+                                    }
+                                });
+                    } catch (IOException e) {
+                        com.arbor.util.DialogHelper.showError("Error", "Could not read template: " + e.getMessage());
+                    }
+                });
+    }
+
+    private void openTemplatesFolder() {
+        try {
+            java.awt.Desktop.getDesktop().open(templateService.getTemplatesDir().toFile());
+        } catch (IOException e) {
+            com.arbor.util.DialogHelper.showError("Error", "Could not open templates folder: " + e.getMessage());
+        }
+    }
+
+    private void openDailyNote(Path grovePath, FileTreePanel fileTreePanel, ArborConfig config) {
+        try {
+            Path notePath = dailyNoteService.openOrCreateDailyNote(grovePath, config.getDailyNotesFolder());
+            fileTreePanel.refresh();
+            tabController.openFile(notePath);
+        } catch (IOException e) {
+            com.arbor.util.DialogHelper.showError("Error", "Could not open daily note: " + e.getMessage());
+        }
+    }
+
+    private void exportHtml(Stage stage, ArborConfig config) {
+        Tab active = splitEditorPane.getActivePane().getSelectionModel().getSelectedItem();
+        if (!(active instanceof EditorTab editorTab) || !editorTab.isMarkdown()) {
+            com.arbor.util.DialogHelper.showInfo("Export", "Please open a Markdown file to export.");
+            return;
+        }
+
+        boolean darkMode = "dark".equals(config.getTheme());
+        String html = exportService.toStyledHtml(editorTab.getTextArea().getText(), darkMode);
+
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Export as HTML");
+        fileChooser.setInitialFileName(stripExtension(editorTab.getFilePath()) + ".html");
+        fileChooser.getExtensionFilters().add(
+                new javafx.stage.FileChooser.ExtensionFilter("HTML Files", "*.html"));
+        File outputFile = fileChooser.showSaveDialog(stage);
+        if (outputFile != null) {
+            try {
+                exportService.exportHtml(html, outputFile.toPath());
+                com.arbor.util.DialogHelper.showInfo("Export", "Exported HTML to " + outputFile.getName());
+            } catch (IOException e) {
+                com.arbor.util.DialogHelper.showError("Error", "Export failed: " + e.getMessage());
+            }
+        }
+    }
+
+    private void exportPdf(Stage stage, ArborConfig config) {
+        Tab active = splitEditorPane.getActivePane().getSelectionModel().getSelectedItem();
+        if (!(active instanceof EditorTab editorTab) || !editorTab.isMarkdown()) {
+            com.arbor.util.DialogHelper.showInfo("Export", "Please open a Markdown file to export.");
+            return;
+        }
+
+        boolean darkMode = "dark".equals(config.getTheme());
+        String html = exportService.toStyledHtml(editorTab.getTextArea().getText(), darkMode);
+        exportService.exportPdf(html, stage);
+    }
+
+    private void toggleFocusMode(ArborConfig config) {
+        boolean newState = !config.isFocusModeEnabled();
+        config.setFocusModeEnabled(newState);
+        configService.save();
+
+        Tab active = splitEditorPane.getActivePane().getSelectionModel().getSelectedItem();
+        if (active instanceof EditorTab editorTab) {
+            editorTab.setFocusMode(newState);
+        }
+        statusBar.setFocusIndicator(newState);
+    }
+
+    private void toggleTypewriterMode(ArborConfig config) {
+        boolean newState = !config.isTypewriterModeEnabled();
+        config.setTypewriterModeEnabled(newState);
+        configService.save();
+
+        Tab active = splitEditorPane.getActivePane().getSelectionModel().getSelectedItem();
+        if (active instanceof EditorTab editorTab) {
+            editorTab.setTypewriterMode(newState);
+        }
+        statusBar.setTypewriterIndicator(newState);
+    }
+
+    private String stripExtension(Path filePath) {
+        String name = filePath.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        return dot > 0 ? name.substring(0, dot) : name;
     }
 
     private void enableWindowResize(Scene scene, Stage stage) {

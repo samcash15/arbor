@@ -181,6 +181,13 @@
     -fx-text-fill: -arbor-accent;
 }
 
+/* ===== File Tree Tags ===== */
+.tree-cell-tags {
+    -fx-font-size: 11px;
+    -fx-text-fill: #B8860B;
+    -fx-font-style: italic;
+}
+
 /* ===== Tab Pane ===== */
 .tab-pane {
     -fx-background-color: -arbor-white;
@@ -841,6 +848,27 @@
     -fx-font-family: "Consolas", "Courier New", monospace;
 }
 
+/* ===== Focus Mode ===== */
+.focus-dimmed {
+    -fx-opacity: 0.35;
+}
+
+.focus-active {
+    -fx-opacity: 1.0;
+}
+
+/* ===== Status Indicator ===== */
+.status-indicator {
+    -fx-text-fill: -arbor-accent;
+    -fx-font-weight: bold;
+}
+
+/* ===== Tag Highlight ===== */
+.tag {
+    -fx-fill: #B8860B;
+    -fx-font-style: italic;
+}
+
 /* ===== Split Drop Zone ===== */
 .split-drop-zone {
     -fx-border-color: -arbor-accent;
@@ -954,6 +982,18 @@
 .root.dark .split-drop-zone {
     -fx-border-color: -arbor-accent;
     -fx-background-color: rgba(95, 186, 167, 0.05);
+}
+
+.root.dark .tree-cell-tags {
+    -fx-text-fill: #FFCB6B;
+}
+
+.root.dark .focus-dimmed {
+    -fx-opacity: 0.3;
+}
+
+.root.dark .tag {
+    -fx-fill: #FFCB6B;
 }
 
 .root.dark .settings-close-button {

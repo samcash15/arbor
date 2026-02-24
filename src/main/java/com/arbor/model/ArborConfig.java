@@ -13,6 +13,10 @@ public class ArborConfig {
     private String theme = "light";
     private List<String> openTabs = new ArrayList<>();
     private int selectedTabIndex = 0;
+    private String dailyNotesFolder = "Journal";
+    private boolean focusModeEnabled = false;
+    private boolean typewriterModeEnabled = false;
+    private boolean showTagsInTree = true;
 
     public ArborConfig() {
     }
@@ -75,6 +79,38 @@ public class ArborConfig {
 
     public void setSelectedTabIndex(int selectedTabIndex) {
         this.selectedTabIndex = selectedTabIndex;
+    }
+
+    public String getDailyNotesFolder() {
+        return dailyNotesFolder;
+    }
+
+    public void setDailyNotesFolder(String dailyNotesFolder) {
+        this.dailyNotesFolder = dailyNotesFolder;
+    }
+
+    public boolean isFocusModeEnabled() {
+        return focusModeEnabled;
+    }
+
+    public void setFocusModeEnabled(boolean focusModeEnabled) {
+        this.focusModeEnabled = focusModeEnabled;
+    }
+
+    public boolean isTypewriterModeEnabled() {
+        return typewriterModeEnabled;
+    }
+
+    public void setTypewriterModeEnabled(boolean typewriterModeEnabled) {
+        this.typewriterModeEnabled = typewriterModeEnabled;
+    }
+
+    public boolean isShowTagsInTree() {
+        return showTagsInTree;
+    }
+
+    public void setShowTagsInTree(boolean showTagsInTree) {
+        this.showTagsInTree = showTagsInTree;
     }
 
     public void addRecentGrove(Path grovePath) {

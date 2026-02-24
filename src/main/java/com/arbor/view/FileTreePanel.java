@@ -2,7 +2,9 @@ package com.arbor.view;
 
 import com.arbor.service.FileOperationService;
 import com.arbor.service.FileTreeService;
+import com.arbor.service.TagService;
 import com.arbor.util.DialogHelper;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
@@ -21,11 +23,14 @@ public class FileTreePanel extends VBox {
     private final TreeView<Path> treeView;
     private final FileTreeService treeService;
     private final FileOperationService fileOps;
+    private final TagService tagService;
     private TreeItem<Path> rootItem;
 
-    public FileTreePanel(FileTreeService treeService, FileOperationService fileOps, Consumer<Path> onFileOpen) {
+    public FileTreePanel(FileTreeService treeService, FileOperationService fileOps, Consumer<Path> onFileOpen,
+                         TagService tagService) {
         this.treeService = treeService;
         this.fileOps = fileOps;
+        this.tagService = tagService;
 
         getStyleClass().add("file-tree-panel");
 
@@ -42,7 +47,7 @@ public class FileTreePanel extends VBox {
         // Tree view
         treeView = new TreeView<>();
         treeView.setShowRoot(true);
-        treeView.setCellFactory(tv -> new PathTreeCell(fileOps, treeService, onFileOpen));
+        treeView.setCellFactory(tv -> new PathTreeCell(fileOps, treeService, onFileOpen, tagService));
         VBox.setVgrow(treeView, Priority.ALWAYS);
 
         // Separator line + New Folder link
@@ -84,5 +89,9 @@ public class FileTreePanel extends VBox {
         if (rootItem != null) {
             treeService.populateChildren(rootItem);
         }
+    }
+
+    public void refreshCells() {
+        Platform.runLater(treeView::refresh);
     }
 }

@@ -2,8 +2,10 @@ package com.arbor.util;
 
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.TextInputDialog;
 
+import java.util.List;
 import java.util.Optional;
 
 public final class DialogHelper {
@@ -31,6 +33,13 @@ public final class DialogHelper {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.showAndWait();
+    }
+
+    public static <T> Optional<T> showChoiceDialog(String title, String header, List<T> choices) {
+        ChoiceDialog<T> dialog = new ChoiceDialog<>(choices.getFirst(), choices);
+        dialog.setTitle(title);
+        dialog.setHeaderText(header);
+        return dialog.showAndWait();
     }
 
     public static void showInfo(String title, String message) {

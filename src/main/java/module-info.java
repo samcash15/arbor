@@ -9,6 +9,7 @@ module com.arbor {
     requires com.google.gson;
     requires org.slf4j;
     requires org.commonmark;
+    requires java.desktop;
 
     opens com.arbor to javafx.fxml;
     opens com.arbor.model to com.google.gson;

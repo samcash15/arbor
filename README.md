@@ -21,23 +21,47 @@ Most note-taking apps either lock you into proprietary formats, require cloud ac
 ## <img src="src/main/resources/images/leaf.png" height="20" align="top"> Features
 
 ### Editor
-- Multi-tab editing with dirty state tracking
+- Multi-tab editing with dirty state tracking and drag-and-drop tab reordering
+- Split editor — open files side-by-side with drag-and-drop between panes
 - Syntax highlighting for Java, JavaScript/TypeScript, Python, JSON, HTML/XML, and CSS
 - Markdown preview with Edit, Split, and Preview view modes
 - Find and Replace (Ctrl+F / Ctrl+H) with case sensitivity toggle
 - Line numbers and word wrap
 - Auto-save after 2 seconds of inactivity
+- **Focus Mode** — Dims non-active paragraphs to reduce distractions
+- **Typewriter Mode** — Keeps the current line centered in the viewport
 
 ### File Management
-- Hierarchical file tree with folder/file icons
+- Hierarchical file tree with folder/file icons and inline tag display
 - Color-coded leaf icons by file type (Java = red-orange, JS = yellow, TS = blue, etc.)
 - Create, rename, and delete files and folders via context menu or quick-add button
 - Dual-mode search — search by filename or file content (Ctrl+Shift+F)
 
+### Tags
+- Mark content with `#hashtag` syntax (e.g., `#meeting`, `#todo`, `#project-x`)
+- Tags are highlighted in the editor and displayed inline in the file tree
+- Search files by tag with autocomplete (Ctrl+Shift+F, then switch to Tag mode)
+
+### Templates
+- Create files from templates via the Command Palette
+- Pre-built defaults: Blank Note, Meeting Notes, Bug Report
+- Add your own templates in the `~/.arbor/templates` folder
+
+### Daily Notes
+- Quickly create or open today's note with **Ctrl+D**
+- Auto-creates a dated markdown file (e.g., `2026-02-24.md`) in a configurable folder
+- Configurable daily notes folder in settings (default: "Journal")
+
+### Export
+- Export notes as HTML or PDF from the Command Palette
+- Theme-aware export that respects light/dark mode styling
+
 ### Workspace
 - **Groves** — Organize work into separate directories, each with its own config
 - Switch between recent groves from settings
+- **Session restore** — Automatically reopens your previously open tabs on launch
 - Window state persistence (size, position, splitter location)
+- Status bar with cursor position, word/line count, and mode indicators
 - Light and Dark themes
 
 ### Command Palette
@@ -55,6 +79,7 @@ Most note-taking apps either lock you into proprietary formats, require cloud ac
 | Ctrl+W | Close tab |
 | Ctrl+N | New file |
 | Ctrl+Shift+N | New folder |
+| Ctrl+D | Daily note |
 | Ctrl+Shift+F | Search files |
 | Ctrl+Shift+O | Toggle outline panel |
 | Ctrl+F | Find in file |
@@ -98,6 +123,18 @@ src/main/java/com/arbor/
 ```
 
 ## <img src="src/main/resources/images/leaf.png" height="20" align="top"> Version History
+
+### v0.3.0
+- **Tags** — Mark content with `#hashtag` syntax. Tags are highlighted in the editor, displayed inline in the file tree, and searchable via a dedicated tag search mode.
+- **Templates** — Create files from built-in or custom templates. Add your own to `~/.arbor/templates`.
+- **Daily Notes (Ctrl+D)** — Quickly create or open today's dated note in a configurable journal folder.
+- **Split Editor** — Open files side-by-side with drag-and-drop tab support between panes.
+- **Focus Mode** — Dims non-active paragraphs to help you concentrate on the current line.
+- **Typewriter Mode** — Keeps the active line centered in the editor viewport for a distraction-free writing flow.
+- **Export** — Export notes as HTML or PDF with theme-aware styling.
+- **Session Restore** — Automatically reopens your previously open tabs when you relaunch Arbor.
+- **Status Bar** — Shows cursor position (Ln/Col), word or line count, file type, and active mode indicators.
+- **Draggable Tabs** — Reorder tabs by dragging, or drag between split panes to move files.
 
 ### v0.2.0
 - **Command Palette (Ctrl+Shift+P)** — A searchable command launcher with fuzzy matching, category chips, and shortcut hints. Every action in the app is now discoverable from a single entry point.

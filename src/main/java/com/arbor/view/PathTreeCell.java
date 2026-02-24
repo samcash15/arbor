@@ -2,6 +2,7 @@ package com.arbor.view;
 
 import com.arbor.service.FileOperationService;
 import com.arbor.service.FileTreeService;
+import com.arbor.service.TagService;
 import com.arbor.util.DialogHelper;
 import com.arbor.util.IconFactory;
 import javafx.geometry.Pos;
@@ -14,18 +15,24 @@ import javafx.scene.layout.Region;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public class PathTreeCell extends TreeCell<Path> {
     private final FileOperationService fileOps;
     private final FileTreeService treeService;
     private final Consumer<Path> onFileOpen;
+    private final TagService tagService;
 
-    public PathTreeCell(FileOperationService fileOps, FileTreeService treeService, Consumer<Path> onFileOpen) {
+    public PathTreeCell(FileOperationService fileOps, FileTreeService treeService, Consumer<Path> onFileOpen,
+                        TagService tagService) {
         this.fileOps = fileOps;
         this.treeService = treeService;
         this.onFileOpen = onFileOpen;
+        this.tagService = tagService;
     }
 
     @Override
@@ -90,13 +97,30 @@ public class PathTreeCell extends TreeCell<Path> {
             rootGraphic.setMaxWidth(Double.MAX_VALUE);
             setGraphic(rootGraphic);
         } else {
-            setText(fileName);
             if (Files.isDirectory(path)) {
+                setText(fileName);
                 setGraphic(IconFactory.folderIcon());
             } else {
                 int dot = fileName.lastIndexOf('.');
                 String ext = dot >= 0 ? fileName.substring(dot + 1) : "";
-                setGraphic(IconFactory.fileIcon(ext));
+
+                // Look up tags for this file
+                String tagsText = getTagsForFile(path);
+                if (tagsText != null) {
+                    setText(null);
+                    Label nameLabel = new Label(fileName);
+                    nameLabel.textFillProperty().bind(textFillProperty());
+
+                    Label tagsLabel = new Label(" [" + tagsText + "]");
+                    tagsLabel.getStyleClass().add("tree-cell-tags");
+
+                    HBox cellGraphic = new HBox(2, IconFactory.fileIcon(ext), nameLabel, tagsLabel);
+                    cellGraphic.setAlignment(Pos.CENTER_LEFT);
+                    setGraphic(cellGraphic);
+                } else {
+                    setText(fileName);
+                    setGraphic(IconFactory.fileIcon(ext));
+                }
             }
         }
         setContextMenu(createContextMenu(path));
@@ -184,5 +208,16 @@ public class PathTreeCell extends TreeCell<Path> {
 
         menu.getItems().addAll(rename, delete);
         return menu;
+    }
+
+    private String getTagsForFile(Path path) {
+        if (tagService == null) return null;
+        Map<String, Set<Path>> allTags = tagService.getAllTags();
+        String tags = allTags.entrySet().stream()
+                .filter(entry -> entry.getValue().contains(path))
+                .map(Map.Entry::getKey)
+                .sorted()
+                .collect(Collectors.joining(", "));
+        return tags.isEmpty() ? null : tags;
     }
 }

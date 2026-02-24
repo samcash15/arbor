@@ -9,6 +9,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static com.arbor.service.BacklinkService.BACKLINK_PATTERN;
+import static com.arbor.service.TagService.TAG_PATTERN;
 
 public class SyntaxHighlightService {
 
@@ -151,6 +152,39 @@ public class SyntaxHighlightService {
 
         if (lastEnd == 0) {
             return base; // no backlinks found
+        }
+
+        if (lastEnd < text.length()) {
+            overlayBuilder.add(Collections.emptySet(), text.length() - lastEnd);
+        }
+
+        StyleSpans<Collection<String>> overlay = overlayBuilder.create();
+        return base.overlay(overlay, (existing, added) -> {
+            if (added.isEmpty()) return existing;
+            Set<String> merged = new TreeSet<>(existing);
+            merged.addAll(added);
+            return merged;
+        });
+    }
+
+    public static StyleSpans<Collection<String>> overlayTags(StyleSpans<Collection<String>> base, String text) {
+        // Match #tag including the # character
+        Pattern fullTagPattern = Pattern.compile("(?<=\\s|^)(#[a-zA-Z][a-zA-Z0-9_-]*)");
+        Matcher matcher = fullTagPattern.matcher(text);
+
+        StyleSpansBuilder<Collection<String>> overlayBuilder = new StyleSpansBuilder<>();
+        int lastEnd = 0;
+
+        while (matcher.find()) {
+            if (matcher.start() > lastEnd) {
+                overlayBuilder.add(Collections.emptySet(), matcher.start() - lastEnd);
+            }
+            overlayBuilder.add(Collections.singleton("tag"), matcher.end() - matcher.start());
+            lastEnd = matcher.end();
+        }
+
+        if (lastEnd == 0) {
+            return base;
         }
 
         if (lastEnd < text.length()) {

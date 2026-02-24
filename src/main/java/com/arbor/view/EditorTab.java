@@ -72,6 +72,10 @@ public class EditorTab extends Tab {
     private Consumer<String> onBacklinkNavigate;
     private Runnable onSaveCallback;
     private Runnable onSplitRight;
+    private boolean focusMode = false;
+    private boolean typewriterMode = false;
+    private javafx.beans.value.ChangeListener<Integer> typewriterListener;
+    private int lastFocusParagraph = -1;
 
     public EditorTab(Path filePath, FileOperationService fileOps) {
         this.filePath = filePath;
@@ -140,8 +144,12 @@ public class EditorTab extends Tab {
         });
 
         // Bracket matching on caret movement
-        textArea.caretPositionProperty().addListener((obs, oldPos, newPos) ->
-                updateBracketHighlights(newPos.intValue()));
+        textArea.caretPositionProperty().addListener((obs, oldPos, newPos) -> {
+            updateBracketHighlights(newPos.intValue());
+            if (focusMode) {
+                updateFocusParagraphStyles();
+            }
+        });
 
         // Tab context menu
         javafx.scene.control.ContextMenu contextMenu = new javafx.scene.control.ContextMenu();
@@ -248,6 +256,7 @@ public class EditorTab extends Tab {
             String text = textArea.getText();
             var spans = syntaxService.computeHighlighting(text, language);
             spans = SyntaxHighlightService.overlayBacklinks(spans, text);
+            spans = SyntaxHighlightService.overlayTags(spans, text);
             textArea.setStyleSpans(0, spans);
         } catch (Exception e) {
             log.debug("Syntax highlighting failed", e);
@@ -457,6 +466,78 @@ public class EditorTab extends Tab {
 
     public BorderPane getRootPane() {
         return rootPane;
+    }
+
+    public void setFocusMode(boolean enabled) {
+        this.focusMode = enabled;
+        if (enabled) {
+            textArea.getStyleClass().add("focus-mode");
+            updateFocusParagraphStyles();
+        } else {
+            textArea.getStyleClass().remove("focus-mode");
+            // Clear all paragraph styles
+            for (int i = 0; i < textArea.getParagraphs().size(); i++) {
+                textArea.setParagraphStyle(i, java.util.Collections.emptyList());
+            }
+            lastFocusParagraph = -1;
+        }
+    }
+
+    public boolean isFocusMode() {
+        return focusMode;
+    }
+
+    public void setTypewriterMode(boolean enabled) {
+        this.typewriterMode = enabled;
+        if (enabled) {
+            typewriterListener = (obs, oldVal, newVal) -> scrollCaretToCenter();
+            textArea.caretPositionProperty().addListener(typewriterListener);
+            scrollCaretToCenter();
+        } else {
+            if (typewriterListener != null) {
+                textArea.caretPositionProperty().removeListener(typewriterListener);
+                typewriterListener = null;
+            }
+        }
+    }
+
+    public boolean isTypewriterMode() {
+        return typewriterMode;
+    }
+
+    private void updateFocusParagraphStyles() {
+        int currentParagraph = textArea.getCurrentParagraph();
+        if (currentParagraph == lastFocusParagraph) return;
+
+        int totalParagraphs = textArea.getParagraphs().size();
+
+        // Clear old active paragraph
+        if (lastFocusParagraph >= 0 && lastFocusParagraph < totalParagraphs) {
+            textArea.setParagraphStyle(lastFocusParagraph, java.util.List.of("focus-dimmed"));
+        }
+
+        // Set new active paragraph
+        if (currentParagraph >= 0 && currentParagraph < totalParagraphs) {
+            textArea.setParagraphStyle(currentParagraph, java.util.List.of("focus-active"));
+        }
+
+        // On first activation, dim all non-active paragraphs
+        if (lastFocusParagraph < 0) {
+            for (int i = 0; i < totalParagraphs; i++) {
+                if (i != currentParagraph) {
+                    textArea.setParagraphStyle(i, java.util.List.of("focus-dimmed"));
+                }
+            }
+        }
+
+        lastFocusParagraph = currentParagraph;
+    }
+
+    private void scrollCaretToCenter() {
+        int currentParagraph = textArea.getCurrentParagraph();
+        // Show the current paragraph near ~40% from top
+        int targetParagraph = Math.max(0, currentParagraph - 5);
+        textArea.showParagraphAtTop(targetParagraph);
     }
 
     static String extractBacklinkAt(String text, int pos) {

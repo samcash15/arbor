@@ -1,6 +1,7 @@
 package com.arbor.view;
 
 import com.arbor.service.SearchService;
+import com.arbor.service.TagService;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -16,16 +17,19 @@ import java.util.function.Consumer;
 
 public class SearchBar extends VBox {
     private final SearchService searchService;
+    private final TagService tagService;
     private final TextField searchField;
     private final ToggleButton fileToggle;
     private final ToggleButton contentToggle;
+    private final ToggleButton tagToggle;
     private final ListView<Path> resultsList;
 
     private Path rootPath;
     private Consumer<Path> onFileOpen;
 
-    public SearchBar(SearchService searchService) {
+    public SearchBar(SearchService searchService, TagService tagService) {
         this.searchService = searchService;
+        this.tagService = tagService;
 
         getStyleClass().add("search-bar");
         setVisible(false);
@@ -48,6 +52,10 @@ public class SearchBar extends VBox {
         contentToggle.setToggleGroup(modeGroup);
         contentToggle.getStyleClass().add("search-bar-toggle");
 
+        tagToggle = new ToggleButton("Tag");
+        tagToggle.setToggleGroup(modeGroup);
+        tagToggle.getStyleClass().add("search-bar-toggle");
+
         // Prevent deselecting both toggles
         modeGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null) {
@@ -60,8 +68,19 @@ public class SearchBar extends VBox {
         closeBtn.getStyleClass().add("search-bar-close");
         closeBtn.setOnMouseClicked(e -> hide());
 
+        // Update prompt text per mode
+        modeGroup.selectedToggleProperty().addListener((obs2, oldVal2, newVal2) -> {
+            if (newVal2 == tagToggle) {
+                searchField.setPromptText("Search tags (e.g. meeting)...");
+            } else if (newVal2 == contentToggle) {
+                searchField.setPromptText("Search content...");
+            } else {
+                searchField.setPromptText("Search files...");
+            }
+        });
+
         // Search row
-        HBox searchRow = new HBox(8, searchField, fileToggle, contentToggle, closeBtn);
+        HBox searchRow = new HBox(8, searchField, fileToggle, contentToggle, tagToggle, closeBtn);
         searchRow.setAlignment(Pos.CENTER_LEFT);
         searchRow.setPadding(new Insets(8, 12, 4, 12));
 
@@ -128,7 +147,10 @@ public class SearchBar extends VBox {
         }
 
         List<Path> results;
-        if (contentToggle.isSelected()) {
+        if (tagToggle.isSelected()) {
+            String tagQuery = query.trim().startsWith("#") ? query.trim().substring(1) : query.trim();
+            results = new java.util.ArrayList<>(tagService.getFilesForTag(tagQuery));
+        } else if (contentToggle.isSelected()) {
             results = searchService.searchByContent(rootPath, query.trim())
                     .stream().map(SearchService.SearchResult::path).toList();
         } else {
@@ -175,6 +197,11 @@ public class SearchBar extends VBox {
 
     public void setRootPath(Path rootPath) {
         this.rootPath = rootPath;
+    }
+
+    public void selectTagMode() {
+        tagToggle.setSelected(true);
+        show();
     }
 
     public void setOnFileOpen(Consumer<Path> onFileOpen) {
